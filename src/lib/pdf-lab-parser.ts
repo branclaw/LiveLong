@@ -425,7 +425,8 @@ export function parseHealthGorillaText(pageTexts: string[]): ParsedBiomarker[] {
 
     // Look for range patterns in the rest of the line
     // Pattern: "65-99 mg/dL" or "3.5-5.3 mmol/L"
-    const rangeUnitMatch = restStr.match(/(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\s+([\w/%]+(?:\/[\w]+)*)/);
+    // Unit must contain at least one letter (not purely numeric)
+    const rangeUnitMatch = restStr.match(/(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)\s+([a-zA-Z%][\w/%]*(?:\/[\w]+)*)/);
     if (rangeUnitMatch) {
       refLow = parseFloat(rangeUnitMatch[1]);
       refHigh = parseFloat(rangeUnitMatch[2]);
@@ -476,6 +477,11 @@ export function parseHealthGorillaText(pageTexts: string[]): ParsedBiomarker[] {
     if (!unit) {
       const unitMatch = restStr.match(/(% efflux(?:\/\w+)?|% by wt|Thousand\/uL|Million\/uL)/i);
       if (unitMatch) unit = unitMatch[1];
+    }
+
+    // Reject garbage units (e.g. "Z4M", random codes)
+    if (unit && !/^(%|mg|g|ng|pg|ug|mcg|mmol|umol|nmol|pmol|uIU|mL|dL|fL|U|L|cells|Thousand|Million|Angstrom|uM)/i.test(unit) && unit !== '%') {
+      unit = '';
     }
 
     // Match to biomarker database
