@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, X, Activity, TrendingUp, TrendingDown, Minus, Pill, ExternalLink, ShoppingCart, Sparkles } from 'lucide-react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { Upload, FileText, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, X, Activity, TrendingUp, TrendingDown, Minus, Pill, ExternalLink, ShoppingCart, Sparkles, Trash2 } from 'lucide-react';
 import biomarkersDB from '@/data/biomarkers-master.json';
 import compoundsData from '@/data/compounds.json';
 import { getRecommendationsFromLabResults, type SupplementRecommendation } from '@/data/biomarker-supplement-map';
+import { extractTextFromPDF, parseHealthGorillaText, parseLabText as parseLabTextFile, type ParsedBiomarker } from '@/lib/pdf-lab-parser';
 import Link from 'next/link';
 
 interface ParsedResult {
@@ -50,126 +51,24 @@ interface CompoundData {
   [key: string]: unknown;
 }
 
-// Biomarker alias map for matching
-const ALIASES: Record<string, string> = {
-  'glucose': 'glucose', 'glucose, serum': 'glucose',
-  'bun': 'bun', 'blood urea nitrogen': 'bun', 'urea nitrogen': 'bun',
-  'creatinine': 'creatinine', 'creatinine, serum': 'creatinine',
-  'egfr': 'egfr-creatinine', 'egfr non-afr. american': 'egfr-creatinine',
-  'sodium': 'sodium', 'potassium': 'potassium', 'chloride': 'chloride',
-  'carbon dioxide': 'carbon-dioxide', 'co2': 'carbon-dioxide',
-  'calcium': 'calcium', 'calcium, serum': 'calcium',
-  'protein, total': 'total-protein', 'total protein': 'total-protein',
-  'albumin': 'albumin', 'albumin, serum': 'albumin',
-  'globulin': 'globulin', 'globulin, total': 'globulin',
-  'a/g ratio': 'albumin-globulin-ratio', 'albumin/globulin ratio': 'albumin-globulin-ratio',
-  'bilirubin, total': 'total-bilirubin', 'total bilirubin': 'total-bilirubin',
-  'alkaline phosphatase': 'alp', 'alkaline phosphatase, s': 'alp',
-  'ast (sgot)': 'ast', 'ast': 'ast', 'aspartate aminotransferase': 'ast',
-  'alt (sgpt)': 'alt', 'alt': 'alt', 'alanine aminotransferase': 'alt',
-  'cholesterol, total': 'total-cholesterol', 'total cholesterol': 'total-cholesterol',
-  'triglycerides': 'triglycerides',
-  'hdl cholesterol': 'hdl-cholesterol', 'hdl': 'hdl-cholesterol',
-  'ldl cholesterol': 'ldl-cholesterol', 'ldl chol calc (nih)': 'ldl-cholesterol', 'ldl': 'ldl-cholesterol',
-  'non-hdl cholesterol': 'non-hdl-cholesterol',
-  'chol/hdlc ratio': 'total-cholesterol-hdl-ratio',
-  'wbc': 'wbc-count', 'white blood cell count': 'wbc-count',
-  'rbc': 'rbc-count', 'red blood cell count': 'rbc-count',
-  'hemoglobin': 'hemoglobin', 'hematocrit': 'hematocrit',
-  'mcv': 'mcv', 'mch': 'mch', 'mchc': 'mchc', 'rdw': 'rdw',
-  'platelet count': 'platelet-count', 'platelets': 'platelet-count',
-  'mpv': 'mpv',
-  'neutrophils': 'neutrophils', 'lymphocytes': 'lymphocytes',
-  'monocytes': 'monocytes', 'eosinophils': 'eosinophils', 'basophils': 'basophils',
-  'tsh': 'tsh', 't4, free': 't4-free', 'free t4': 't4-free',
-  't3, free': 't3-free', 'free t3': 't3-free',
-  'hemoglobin a1c': 'hba1c', 'hba1c': 'hba1c', 'a1c': 'hba1c',
-  'insulin': 'insulin', 'hs-crp': 'hscrp', 'c-reactive protein': 'hscrp',
-  'ferritin': 'ferritin', 'iron': 'iron', 'iron, serum': 'iron',
-  'tibc': 'tibc', 'iron binding capacity': 'tibc',
-  'iron saturation': 'iron-saturation',
-  'vitamin d': 'vitamin-d', 'vitamin d, 25-hydroxy': 'vitamin-d',
-  'homocysteine': 'homocysteine', 'uric acid': 'uric-acid',
-  'testosterone, total': 'testosterone-total', 'testosterone, free': 'testosterone-free',
-  'cortisol': 'cortisol', 'magnesium': 'magnesium', 'zinc': 'zinc',
-  'ggt': 'ggt', 'gamma-glutamyl transferase': 'ggt',
-};
-
-const biomarkerMap = new Map(biomarkersDB.map(b => [b.id, b]));
 const compoundsMap = new Map((compoundsData as CompoundData[]).map(c => [c.name, c]));
 
-function matchBiomarker(name: string) {
-  const norm = name.toLowerCase().trim();
-  const aliasId = ALIASES[norm];
-  if (aliasId) return biomarkerMap.get(aliasId) || null;
-  for (const bm of biomarkersDB) {
-    const dbName = bm.name.toLowerCase();
-    if (dbName === norm || dbName.includes(norm) || norm.includes(dbName)) return bm;
-  }
-  return null;
+const STORAGE_KEY = 'llp-lab-reports';
+
+function loadSavedReports(): UploadedReport[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch { /* ignore parse errors */ }
+  return [];
 }
 
-function parseLabText(text: string): ParsedResult[] {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const results: ParsedResult[] = [];
-
-  for (const line of lines) {
-    const m = line.match(/^([A-Za-z][\w\s,/().%-]+?)\s{2,}([\d<>.]+)\s*(H|L|HH|LL)?\s+([\d<>.\-–]+(?:\s*[-–]\s*[\d<>.]+)?)\s+(.+)$/);
-    if (m) {
-      const [, rawName, rawValue, flag, refRange, unit] = m;
-      addResult(results, rawName.trim(), rawValue.trim(), unit.trim(), refRange, flag);
-      continue;
-    }
-    const s = line.match(/^([A-Za-z][\w\s,/().%-]+?)\s{2,}([\d<>.]+)\s+(\S+)\s+([\d<>.\-–]+\s*[-–]\s*[\d<>.]+)?/);
-    if (s) {
-      const [, rawName, rawValue, unit, refRange] = s;
-      addResult(results, rawName.trim(), rawValue.trim(), unit.trim(), refRange || '', undefined);
-    }
-  }
-
-  return results;
-}
-
-function addResult(results: ParsedResult[], name: string, value: string, unit: string, refRange: string, flag?: string) {
-  const numericValue = parseFloat(value.replace(/[<>,]/g, '')) || null;
-  const rangeMatch = refRange.match(/([\d.]+)\s*[-–]\s*([\d.]+)/);
-  const refLow = rangeMatch ? parseFloat(rangeMatch[1]) : null;
-  const refHigh = rangeMatch ? parseFloat(rangeMatch[2]) : null;
-
-  const matched = matchBiomarker(name);
-  let isOutOfRange = false;
-  let isOutOfOptimal = false;
-  let detectedFlag: ParsedResult['flag'] = 'unknown';
-
-  if (flag) {
-    const f = flag.toUpperCase();
-    if (f === 'H') { detectedFlag = 'high'; isOutOfRange = true; }
-    else if (f === 'L') { detectedFlag = 'low'; isOutOfRange = true; }
-    else if (f === 'HH' || f === 'LL') { detectedFlag = 'critical'; isOutOfRange = true; }
-  } else if (numericValue !== null) {
-    if (refLow !== null && numericValue < refLow) { detectedFlag = 'low'; isOutOfRange = true; }
-    else if (refHigh !== null && numericValue > refHigh) { detectedFlag = 'high'; isOutOfRange = true; }
-    else { detectedFlag = 'normal'; }
-  }
-
-  if (matched && numericValue !== null) {
-    const oL = matched.optimal_range_low;
-    const oH = matched.optimal_range_high;
-    if (oL !== null && oH !== null) {
-      isOutOfOptimal = numericValue < oL || numericValue > oH;
-    }
-  }
-
-  results.push({
-    name, value, numericValue, unit, referenceRange: refRange,
-    flag: detectedFlag, matchedId: matched?.id || null,
-    matchedCategory: matched?.category || null,
-    optimalLow: matched?.optimal_range_low ?? null,
-    optimalHigh: matched?.optimal_range_high ?? null,
-    standardLow: matched?.standard_range_low ?? refLow,
-    standardHigh: matched?.standard_range_high ?? refHigh,
-    isOutOfRange, isOutOfOptimal: isOutOfOptimal || isOutOfRange,
-  });
+function saveReports(reports: UploadedReport[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+  } catch { /* ignore storage errors */ }
 }
 
 export default function DataPage() {
@@ -180,7 +79,26 @@ export default function DataPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [browseCategory, setBrowseCategory] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'results' | 'recommendations' | 'browse'>('results');
+  const [loaded, setLoaded] = useState(false);
+  const [selectedBiomarker, setSelectedBiomarker] = useState<ParsedResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load saved reports on mount
+  useEffect(() => {
+    const saved = loadSavedReports();
+    if (saved.length > 0) {
+      setReports(saved);
+      setActiveTab('results');
+    }
+    setLoaded(true);
+  }, []);
+
+  // Persist reports whenever they change (after initial load)
+  useEffect(() => {
+    if (loaded) {
+      saveReports(reports);
+    }
+  }, [reports, loaded]);
 
   const handleFiles = useCallback(async (files: FileList) => {
     setProcessing(true);
@@ -188,17 +106,25 @@ export default function DataPage() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!file.name.toLowerCase().endsWith('.pdf') && !file.name.toLowerCase().endsWith('.txt')) continue;
+      const lower = file.name.toLowerCase();
+      if (!lower.endsWith('.pdf') && !lower.endsWith('.txt')) continue;
 
       try {
-        let text = '';
-        if (file.name.toLowerCase().endsWith('.txt')) {
-          text = await file.text();
+        let results: ParsedResult[];
+
+        if (lower.endsWith('.pdf')) {
+          // Use pdfjs-dist for proper PDF text extraction
+          const pageTexts = await extractTextFromPDF(file);
+          results = parseHealthGorillaText(pageTexts) as ParsedResult[];
         } else {
-          text = await file.text();
+          // Plain text file
+          const text = await file.text();
+          results = parseLabTextFile(text) as ParsedResult[];
         }
 
-        const results = parseLabText(text);
+        // Filter out biological age (user requested removal)
+        results = results.filter(r => r.matchedId !== 'biological-age');
+
         const report: UploadedReport = {
           id: `report_${Date.now()}_${i}`,
           fileName: file.name,
@@ -209,8 +135,8 @@ export default function DataPage() {
           outOfOptimal: results.filter(r => r.isOutOfOptimal).length,
         };
         newReports.push(report);
-      } catch {
-        // Silently skip errored files
+      } catch (err) {
+        console.error('Error parsing file:', file.name, err);
       }
     }
 
@@ -239,6 +165,14 @@ export default function DataPage() {
   const removeReport = (id: string) => {
     setReports(prev => prev.filter(r => r.id !== id));
     if (expandedReport === id) setExpandedReport(null);
+  };
+
+  const clearAllData = () => {
+    setReports([]);
+    setExpandedReport(null);
+    setSelectedBiomarker(null);
+    setSelectedCategory('all');
+    setActiveTab('results');
   };
 
   // Aggregate all results across reports
@@ -308,7 +242,16 @@ export default function DataPage() {
         {/* Uploaded Reports */}
         {reports.length > 0 && (
           <div className="mb-8 space-y-4">
-            <h2 className="text-xl font-semibold text-white">Uploaded Reports</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Uploaded Reports</h2>
+              <button
+                onClick={clearAllData}
+                className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-500/10"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear All Data
+              </button>
+            </div>
             {reports.map(report => (
               <div key={report.id} className="glass-card rounded-xl overflow-hidden">
                 <div
@@ -457,9 +400,13 @@ export default function DataPage() {
                       </thead>
                       <tbody>
                         {filteredResults.map((result, idx) => (
-                          <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <tr
+                            key={idx}
+                            className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                            onClick={() => setSelectedBiomarker(result)}
+                          >
                             <td className="px-4 py-3">
-                              <p className="text-white font-medium text-sm">{result.name}</p>
+                              <p className="text-white font-medium text-sm hover:text-blue-400 transition-colors">{result.name}</p>
                               {result.matchedCategory && (
                                 <p className="text-xs text-slate-500">{result.matchedCategory}</p>
                               )}
@@ -586,7 +533,7 @@ export default function DataPage() {
                   <div className="glass-card rounded-xl p-4 space-y-3">
                     <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-3">{browseCategory}</h3>
                     {biomarkersDB
-                      .filter(b => b.category === browseCategory)
+                      .filter(b => b.category === browseCategory && b.id !== 'biological-age')
                       .map(bm => (
                         <div key={bm.id} className="p-4 bg-white/5 rounded-lg">
                           <div className="flex items-start justify-between gap-4">
@@ -652,7 +599,7 @@ export default function DataPage() {
               <div className="glass-card rounded-xl p-4 space-y-3">
                 <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-3">{browseCategory}</h3>
                 {biomarkersDB
-                  .filter(b => b.category === browseCategory)
+                  .filter(b => b.category === browseCategory && b.id !== 'biological-age')
                   .map(bm => (
                     <div key={bm.id} className="p-4 bg-white/5 rounded-lg">
                       <div className="flex items-start justify-between gap-4">
@@ -686,6 +633,186 @@ export default function DataPage() {
           </div>
         )}
       </div>
+
+      {/* Biomarker Detail Panel */}
+      {selectedBiomarker && (
+        <BiomarkerDetailPanel
+          result={selectedBiomarker}
+          onClose={() => setSelectedBiomarker(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Biomarker Detail Panel (slide-over) ──────────────────────
+
+function BiomarkerDetailPanel({ result, onClose }: { result: ParsedResult; onClose: () => void }) {
+  const dbEntry = result.matchedId
+    ? biomarkersDB.find(b => b.id === result.matchedId)
+    : null;
+
+  // Get supplement recommendations for this biomarker
+  const supplements = useMemo(() => {
+    if (!result.matchedId) return [];
+    const recs = getRecommendationsFromLabResults([result]);
+    return recs;
+  }, [result]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-md bg-[#0a0f1a] border-l border-white/10 overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-[#0a0f1a] border-b border-white/10 p-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white">{result.name}</h2>
+            {result.matchedCategory && (
+              <p className="text-sm text-blue-400 mt-1">{result.matchedCategory}</p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Value + Status */}
+          <div className="flex items-center gap-4">
+            <div className={`text-3xl font-bold font-mono ${
+              result.flag === 'high' || result.flag === 'critical' ? 'text-rose-400' :
+              result.flag === 'low' ? 'text-amber-400' : 'text-emerald-400'
+            }`}>
+              {result.value}
+              <span className="text-sm text-slate-500 ml-2">{result.unit}</span>
+            </div>
+            <StatusBadge flag={result.flag} isOutOfOptimal={result.isOutOfOptimal} />
+          </div>
+
+          {/* Range Visual */}
+          {result.standardLow !== null && result.standardHigh !== null && result.numericValue !== null && (
+            <div className="glass-card p-4 rounded-lg">
+              <p className="text-xs text-slate-400 mb-3 font-semibold uppercase tracking-wider">Range Position</p>
+              <RangeBar
+                value={result.numericValue}
+                standardLow={result.standardLow}
+                standardHigh={result.standardHigh}
+                optimalLow={result.optimalLow}
+                optimalHigh={result.optimalHigh}
+              />
+              <div className="flex justify-between mt-2 text-xs text-slate-500">
+                <span>Standard: {result.standardLow} – {result.standardHigh}</span>
+              </div>
+              {result.optimalLow !== null && result.optimalHigh !== null && (
+                <div className="text-xs text-blue-400 mt-1">
+                  Optimal: {result.optimalLow} – {result.optimalHigh}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Description from DB */}
+          {dbEntry && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-300 leading-relaxed">{dbEntry.blurb}</p>
+              <p className="text-xs text-slate-500 leading-relaxed">{dbEntry.summary}</p>
+            </div>
+          )}
+
+          {/* Supplement Recommendations */}
+          {supplements.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Pill className="w-4 h-4 text-blue-400" />
+                Suggested Supplements
+              </h3>
+              <div className="space-y-2">
+                {supplements.map((rec, idx) => {
+                  const compound = compoundsMap.get(rec.compoundName);
+                  return (
+                    <div key={idx} className="p-3 glass-card rounded-lg border border-white/10">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{rec.compoundName}</p>
+                          {compound && (
+                            <p className="text-xs text-slate-400">{compound.category} · ${compound.pricePerDay.toFixed(2)}/day</p>
+                          )}
+                        </div>
+                        {compound?.amazonLink && (
+                          <a
+                            href={compound.amazonLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">{rec.reasons[0]}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Range Bar Visual ─────────────────────────────────────────
+
+function RangeBar({
+  value, standardLow, standardHigh, optimalLow, optimalHigh
+}: {
+  value: number;
+  standardLow: number;
+  standardHigh: number;
+  optimalLow: number | null;
+  optimalHigh: number | null;
+}) {
+  // Calculate position as percentage within an extended range
+  const margin = (standardHigh - standardLow) * 0.3;
+  const rangeMin = standardLow - margin;
+  const rangeMax = standardHigh + margin;
+  const total = rangeMax - rangeMin;
+
+  const valuePct = Math.max(0, Math.min(100, ((value - rangeMin) / total) * 100));
+  const stdLowPct = ((standardLow - rangeMin) / total) * 100;
+  const stdHighPct = ((standardHigh - rangeMin) / total) * 100;
+
+  const optLowPct = optimalLow !== null ? ((optimalLow - rangeMin) / total) * 100 : null;
+  const optHighPct = optimalHigh !== null ? ((optimalHigh - rangeMin) / total) * 100 : null;
+
+  return (
+    <div className="relative h-6">
+      {/* Full bar background */}
+      <div className="absolute inset-0 bg-white/5 rounded-full" />
+
+      {/* Standard range */}
+      <div
+        className="absolute top-0 bottom-0 bg-emerald-500/20 rounded-full"
+        style={{ left: `${stdLowPct}%`, width: `${stdHighPct - stdLowPct}%` }}
+      />
+
+      {/* Optimal range overlay */}
+      {optLowPct !== null && optHighPct !== null && (
+        <div
+          className="absolute top-0 bottom-0 bg-blue-500/20 rounded-full border border-blue-500/30"
+          style={{ left: `${optLowPct}%`, width: `${optHighPct - optLowPct}%` }}
+        />
+      )}
+
+      {/* Value indicator */}
+      <div
+        className="absolute top-0 bottom-0 w-1 rounded-full bg-white shadow-lg shadow-white/20"
+        style={{ left: `${valuePct}%` }}
+      />
     </div>
   );
 }
