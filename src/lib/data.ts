@@ -16,11 +16,11 @@ export function getCompoundsByTier(tierNumber: number): Compound[] {
 }
 
 export function getCompoundsByCategory(category: string): Compound[] {
-  return compounds.filter(c => c.category.toLowerCase() === category.toLowerCase());
+  return compounds.filter(c => (c.category ?? '').toLowerCase() === category.toLowerCase());
 }
 
 export function getCompoundsBySource(source: string): Compound[] {
-  return compounds.filter(c => c.source.toLowerCase().includes(source.toLowerCase()));
+  return compounds.filter(c => (c.source ?? '').toLowerCase().includes(source.toLowerCase()));
 }
 
 export function getCurrentStack(): Compound[] {
@@ -47,7 +47,7 @@ export function filterAndSortCompounds(filters: Partial<FilterState>): Compound[
   }
 
   if (filters.sources && filters.sources.length > 0) {
-    result = result.filter(c => filters.sources!.some(s => c.source.toLowerCase().includes(s.toLowerCase())));
+    result = result.filter(c => filters.sources!.some(s => (c.source ?? '').toLowerCase().includes(s.toLowerCase())));
   }
 
   if (filters.maxPrice && filters.maxPrice > 0) {
@@ -56,10 +56,10 @@ export function filterAndSortCompounds(filters: Partial<FilterState>): Compound[
 
   if (filters.searchQuery && filters.searchQuery.trim()) {
     const q = filters.searchQuery.toLowerCase();
-    result = result.filter(c => 
-      c.name.toLowerCase().includes(q) || 
-      c.category.toLowerCase().includes(q) ||
-      c.primaryFunction.toLowerCase().includes(q)
+    result = result.filter(c =>
+      (c.name ?? '').toLowerCase().includes(q) ||
+      (c.category ?? '').toLowerCase().includes(q) ||
+      (c.primaryFunction ?? '').toLowerCase().includes(q)
     );
   }
 
