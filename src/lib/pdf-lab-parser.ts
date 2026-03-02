@@ -258,10 +258,10 @@ export async function extractTextFromPDF(file: File): Promise<string[]> {
   const data = new Uint8Array(arrayBuffer);
 
   // Dynamic import for pdfjs-dist
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
 
-  // Set worker to empty to use fake worker (works in browser without separate worker file)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+  // Point worker to the copy in public/ folder
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
   const doc = await pdfjsLib.getDocument({ data }).promise;
   const pages: string[] = [];
