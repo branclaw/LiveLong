@@ -81,6 +81,7 @@ export default function DataPage() {
   const [activeTab, setActiveTab] = useState<'results' | 'recommendations' | 'browse'>('results');
   const [loaded, setLoaded] = useState(false);
   const [selectedBiomarker, setSelectedBiomarker] = useState<ParsedResult | null>(null);
+  const [parseNotice, setParseNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load saved reports on mount
@@ -140,10 +141,23 @@ export default function DataPage() {
       }
     }
 
-    setReports(prev => [...prev, ...newReports]);
+    // Check for files that had no results
+    const emptyFiles = newReports.filter(r => r.totalMarkers === 0);
+    const goodFiles = newReports.filter(r => r.totalMarkers > 0);
+
+    if (emptyFiles.length > 0 && goodFiles.length === 0) {
+      setParseNotice(`No biomarker results found in "${emptyFiles.map(f => f.fileName).join(', ')}". This may be a lab order or a format we don't support yet. Please upload your actual lab results PDF.`);
+    } else if (emptyFiles.length > 0) {
+      setParseNotice(`${emptyFiles.map(f => `"${f.fileName}"`).join(', ')} had no parseable results (may be a lab order, not results). ${goodFiles.length} file(s) parsed successfully.`);
+    } else {
+      setParseNotice(null);
+    }
+
+    // Only add reports that actually have results
+    setReports(prev => [...prev, ...goodFiles]);
     setProcessing(false);
-    if (newReports.length > 0) {
-      setExpandedReport(newReports[0].id);
+    if (goodFiles.length > 0) {
+      setExpandedReport(goodFiles[0].id);
       setActiveTab('results');
     }
   }, []);
@@ -195,124 +209,124 @@ export default function DataPage() {
   const outOfRangeResults = allResults.filter(r => r.isOutOfRange);
   const outOfOptimalOnly = allResults.filter(r => r.isOutOfOptimal && !r.isOutOfRange);
 
+  // Reports with actual results vs empty ones
+  const reportsWithResults = reports.filter(r => r.totalMarkers > 0);
+
   return (
     <div className="min-h-screen bg-[#030712] pt-24 pb-24">
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Data Analysis</h1>
-          <p className="text-slate-400">Upload your lab results to get personalized analysis and supplement recommendations.</p>
-        </div>
-
-        {/* Upload Area */}
-        <div
-          className={`relative border-2 border-dashed rounded-2xl p-12 mb-8 text-center transition-all cursor-pointer ${
-            dragActive
-              ? 'border-blue-400 bg-blue-500/10'
-              : 'border-white/20 hover:border-blue-400/50 hover:bg-white/5'
-          }`}
-          onDragEnter={handleDrag}
-          onDragOver={handleDrag}
-          onDragLeave={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.txt"
-            className="hidden"
-            onChange={(e) => e.target.files && handleFiles(e.target.files)}
-          />
-          <Upload className={`w-12 h-12 mx-auto mb-4 ${dragActive ? 'text-blue-400' : 'text-slate-500'}`} />
-          <h3 className="text-xl font-semibold text-white mb-2">
-            {processing ? 'Processing...' : 'Upload Lab Results'}
-          </h3>
-          <p className="text-slate-400 mb-4">
-            Drag & drop PDF or text files here, or click to browse.
-            <br />
-            <span className="text-slate-500 text-sm">Upload multiple files at once — supports Quest, LabCorp, Health Gorilla formats</span>
-          </p>
-          {processing && (
-            <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto" />
-          )}
-        </div>
-
-        {/* Uploaded Reports */}
-        {reports.length > 0 && (
-          <div className="mb-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">Uploaded Reports</h2>
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">Data Analysis</h1>
+            <p className="text-slate-400">Upload your lab results to get personalized analysis and supplement recommendations.</p>
+          </div>
+          {allResults.length > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                Add More
+              </button>
               <button
                 onClick={clearAllData}
                 className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-rose-500/10"
               >
                 <Trash2 className="w-4 h-4" />
-                Clear All Data
+                Clear All
               </button>
             </div>
-            {reports.map(report => (
-              <div key={report.id} className="glass-card rounded-xl overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
-                  onClick={() => setExpandedReport(expandedReport === report.id ? null : report.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-blue-400" />
-                    <div>
-                      <p className="font-medium text-white">{report.fileName}</p>
-                      <p className="text-xs text-slate-400">
-                        {report.totalMarkers} biomarkers parsed · {new Date(report.uploadDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {report.outOfRange > 0 && (
-                      <span className="flex items-center gap-1 text-rose-400 text-sm">
-                        <AlertTriangle className="w-4 h-4" />
-                        {report.outOfRange} out of range
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeReport(report.id); }}
-                      className="text-slate-500 hover:text-rose-400 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    {expandedReport === report.id ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                  </div>
-                </div>
+          )}
+        </div>
 
-                {expandedReport === report.id && (
-                  <div className="border-t border-white/10 p-4">
-                    {report.results.length === 0 ? (
-                      <p className="text-slate-400 text-center py-8">
-                        No biomarkers could be parsed from this file. Try uploading a text-based PDF or a .txt file with your lab results.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {report.results.map((result, idx) => (
-                          <BiomarkerRow key={idx} result={result} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+        {/* Upload Area - full size when no data, hidden file input when data exists */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.txt"
+          className="hidden"
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        />
+
+        {allResults.length === 0 && (
+          <div
+            className={`relative border-2 border-dashed rounded-2xl p-12 mb-8 text-center transition-all cursor-pointer ${
+              dragActive
+                ? 'border-blue-400 bg-blue-500/10'
+                : 'border-white/20 hover:border-blue-400/50 hover:bg-white/5'
+            }`}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className={`w-12 h-12 mx-auto mb-4 ${dragActive ? 'text-blue-400' : 'text-slate-500'}`} />
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {processing ? 'Processing...' : 'Upload Lab Results'}
+            </h3>
+            <p className="text-slate-400 mb-4">
+              Drag & drop PDF or text files here, or click to browse.
+              <br />
+              <span className="text-slate-500 text-sm">Upload multiple files at once — supports Quest, LabCorp, Health Gorilla formats</span>
+            </p>
+            {processing && (
+              <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto" />
+            )}
           </div>
         )}
 
-        {/* Main content tabs - show after results exist */}
+        {/* Parse notice - shown when files have no results */}
+        {parseNotice && (
+          <div className="mb-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-amber-300 text-sm">{parseNotice}</p>
+            </div>
+            <button onClick={() => setParseNotice(null)} className="text-amber-400/60 hover:text-amber-300 shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Processing indicator when data already exists */}
+        {allResults.length > 0 && processing && (
+          <div className="mb-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            <span className="text-blue-300 text-sm">Processing new files...</span>
+          </div>
+        )}
+
+        {/* Main content - show after results exist */}
         {allResults.length > 0 && (
           <>
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            {/* Stats Cards - FIRST, right at top */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               <StatCard label="Total Tested" value={allResults.length} color="blue" />
               <StatCard label="In Range" value={allResults.filter(r => !r.isOutOfRange && !r.isOutOfOptimal).length} color="green" />
               <StatCard label="Out of Optimal" value={outOfOptimalOnly.length} color="amber" />
               <StatCard label="Out of Range" value={outOfRangeResults.length} color="rose" />
+            </div>
+
+            {/* Source files - compact inline row */}
+            <div className="flex flex-wrap items-center gap-2 mb-6 text-xs text-slate-500">
+              <span>Sources:</span>
+              {reportsWithResults.map(report => (
+                <span key={report.id} className="inline-flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg">
+                  <FileText className="w-3 h-3 text-blue-400" />
+                  <span className="text-slate-300">{report.fileName}</span>
+                  <span className="text-slate-500">({report.totalMarkers})</span>
+                  <button
+                    onClick={() => removeReport(report.id)}
+                    className="text-slate-600 hover:text-rose-400 transition-colors ml-1"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
             </div>
 
             {/* Tab Navigation */}
