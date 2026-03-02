@@ -190,7 +190,7 @@ export default function DataPage() {
   }, [allResults]);
 
   // Browse database categories
-  const dbCategories = [...new Set(biomarkersDB.map(b => b.category))].sort();
+  const dbCategories = [...new Set(biomarkersDB.filter(b => b.id !== 'biological-age').map(b => b.category))].sort();
 
   const outOfRangeResults = allResults.filter(r => r.isOutOfRange);
   const outOfOptimalOnly = allResults.filter(r => r.isOutOfOptimal && !r.isOutOfRange);
