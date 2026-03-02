@@ -109,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/dashboard' : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback' : undefined,
         },
       });
 
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/dashboard' : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback' : undefined,
         },
       });
 

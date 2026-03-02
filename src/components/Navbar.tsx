@@ -39,6 +39,7 @@ export function Navbar() {
     { href: '/browse', label: 'Browse' },
     { href: '/recommend', label: 'Recommend' },
     { href: '/compare', label: 'Compare' },
+    ...(isAuthenticated ? [{ href: '/dashboard', label: 'Dashboard' }] : []),
   ];
 
   return (
