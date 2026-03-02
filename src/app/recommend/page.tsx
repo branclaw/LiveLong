@@ -3,7 +3,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProtocol } from '@/lib/protocol-context';
 import { useOnboarding } from '@/lib/onboarding-context';
-import { getRecommendationsByGoals, getRecommendationsByBiomarkers, getAvailableGoals, getAvailableBiomarkerConditions, RecommendationResult } from '@/lib/recommendations';
+import { getRecommendationsByGoals, getRecommendationsByBiomarkers, getAvailableGoals, getAvailableBiomarkerConditions, getBiomarkerIdsForCompound, RecommendationResult } from '@/lib/recommendations';
+import biomarkersDB from '@/data/biomarkers-master.json';
 
 export default function RecommendPage() {
   const { toggleCompound, selectedCompoundIds } = useProtocol();
@@ -214,6 +215,8 @@ export default function RecommendPage() {
                               <p className="text-sm text-slate-300 mb-3">
                                 {rec.reason}
                               </p>
+                              {/* Biomarker context */}
+                              <BiomarkerTags compoundName={rec.compound.name} />
                             </div>
                           </div>
 
@@ -254,6 +257,35 @@ export default function RecommendPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Biomarker tags component - shows which biomarkers a compound addresses
+function BiomarkerTags({ compoundName }: { compoundName: string }) {
+  const biomarkerIds = useMemo(() => getBiomarkerIdsForCompound(compoundName), [compoundName]);
+
+  if (biomarkerIds.length === 0) return null;
+
+  const biomarkerNames = biomarkerIds
+    .map(id => {
+      const bm = biomarkersDB.find(b => b.id === id);
+      return bm ? bm.name : null;
+    })
+    .filter(Boolean)
+    .slice(0, 5); // Show max 5
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      <span className="text-[10px] text-slate-500 uppercase tracking-wider mr-1 self-center">Targets:</span>
+      {biomarkerNames.map((name, i) => (
+        <span key={i} className="text-[10px] bg-blue-500/15 text-blue-300 px-1.5 py-0.5 rounded">
+          {name}
+        </span>
+      ))}
+      {biomarkerIds.length > 5 && (
+        <span className="text-[10px] text-slate-500 self-center">+{biomarkerIds.length - 5} more</span>
+      )}
     </div>
   );
 }

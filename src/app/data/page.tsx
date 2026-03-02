@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
-import { Upload, FileText, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, X, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { Upload, FileText, AlertTriangle, CheckCircle, ChevronDown, ChevronUp, X, Activity, TrendingUp, TrendingDown, Minus, Pill, ExternalLink, ShoppingCart, Sparkles } from 'lucide-react';
 import biomarkersDB from '@/data/biomarkers-master.json';
+import compoundsData from '@/data/compounds.json';
+import { getRecommendationsFromLabResults, type SupplementRecommendation } from '@/data/biomarker-supplement-map';
+import Link from 'next/link';
 
 interface ParsedResult {
   name: string;
@@ -29,6 +32,22 @@ interface UploadedReport {
   totalMarkers: number;
   outOfRange: number;
   outOfOptimal: number;
+}
+
+interface CompoundData {
+  id: number;
+  name: string;
+  category: string;
+  tier: string;
+  tierNumber: number;
+  longevityImpact: number;
+  pricePerDay: number;
+  pricePerMonth: number;
+  primaryFunction: string;
+  amazonLink: string;
+  mechanism: string;
+  targetBiomarkers: string;
+  [key: string]: unknown;
 }
 
 // Biomarker alias map for matching
@@ -77,6 +96,7 @@ const ALIASES: Record<string, string> = {
 };
 
 const biomarkerMap = new Map(biomarkersDB.map(b => [b.id, b]));
+const compoundsMap = new Map((compoundsData as CompoundData[]).map(c => [c.name, c]));
 
 function matchBiomarker(name: string) {
   const norm = name.toLowerCase().trim();
@@ -94,14 +114,12 @@ function parseLabText(text: string): ParsedResult[] {
   const results: ParsedResult[] = [];
 
   for (const line of lines) {
-    // Try structured format: Name   Value  Flag  Range  Unit
     const m = line.match(/^([A-Za-z][\w\s,/().%-]+?)\s{2,}([\d<>.]+)\s*(H|L|HH|LL)?\s+([\d<>.\-–]+(?:\s*[-–]\s*[\d<>.]+)?)\s+(.+)$/);
     if (m) {
       const [, rawName, rawValue, flag, refRange, unit] = m;
       addResult(results, rawName.trim(), rawValue.trim(), unit.trim(), refRange, flag);
       continue;
     }
-    // Try simpler: Name   Value  Unit  Range
     const s = line.match(/^([A-Za-z][\w\s,/().%-]+?)\s{2,}([\d<>.]+)\s+(\S+)\s+([\d<>.\-–]+\s*[-–]\s*[\d<>.]+)?/);
     if (s) {
       const [, rawName, rawValue, unit, refRange] = s;
@@ -161,6 +179,7 @@ export default function DataPage() {
   const [expandedReport, setExpandedReport] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [browseCategory, setBrowseCategory] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'results' | 'recommendations' | 'browse'>('results');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(async (files: FileList) => {
@@ -176,8 +195,6 @@ export default function DataPage() {
         if (file.name.toLowerCase().endsWith('.txt')) {
           text = await file.text();
         } else {
-          // For PDFs, we read as text (client-side PDF parsing would need pdf.js)
-          // For now, show the file as uploaded and parse what we can
           text = await file.text();
         }
 
@@ -199,7 +216,10 @@ export default function DataPage() {
 
     setReports(prev => [...prev, ...newReports]);
     setProcessing(false);
-    if (newReports.length > 0) setExpandedReport(newReports[0].id);
+    if (newReports.length > 0) {
+      setExpandedReport(newReports[0].id);
+      setActiveTab('results');
+    }
   }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -229,8 +249,17 @@ export default function DataPage() {
     ? allResults
     : allResults.filter(r => r.matchedCategory === selectedCategory);
 
+  // Get supplement recommendations based on out-of-range results
+  const recommendations = useMemo(() => {
+    if (allResults.length === 0) return [];
+    return getRecommendationsFromLabResults(allResults);
+  }, [allResults]);
+
   // Browse database categories
   const dbCategories = [...new Set(biomarkersDB.map(b => b.category))].sort();
+
+  const outOfRangeResults = allResults.filter(r => r.isOutOfRange);
+  const outOfOptimalOnly = allResults.filter(r => r.isOutOfOptimal && !r.isOutOfRange);
 
   return (
     <div className="min-h-screen bg-[#030712] pt-24 pb-24">
@@ -238,7 +267,7 @@ export default function DataPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Data Analysis</h1>
-          <p className="text-slate-400">Upload your lab results to get personalized analysis against optimal biomarker ranges.</p>
+          <p className="text-slate-400">Upload your lab results to get personalized analysis and supplement recommendations.</p>
         </div>
 
         {/* Upload Area */}
@@ -282,7 +311,6 @@ export default function DataPage() {
             <h2 className="text-xl font-semibold text-white">Uploaded Reports</h2>
             {reports.map(report => (
               <div key={report.id} className="glass-card rounded-xl overflow-hidden">
-                {/* Report Header */}
                 <div
                   className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                   onClick={() => setExpandedReport(expandedReport === report.id ? null : report.id)}
@@ -313,7 +341,6 @@ export default function DataPage() {
                   </div>
                 </div>
 
-                {/* Expanded Report */}
                 {expandedReport === report.id && (
                   <div className="border-t border-white/10 p-4">
                     {report.results.length === 0 ? (
@@ -334,163 +361,460 @@ export default function DataPage() {
           </div>
         )}
 
-        {/* Results Dashboard */}
+        {/* Main content tabs - show after results exist */}
         {allResults.length > 0 && (
-          <div className="mb-8">
+          <>
             {/* Stats Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
               <StatCard label="Total Tested" value={allResults.length} color="blue" />
               <StatCard label="In Range" value={allResults.filter(r => !r.isOutOfRange && !r.isOutOfOptimal).length} color="green" />
-              <StatCard label="Out of Optimal" value={allResults.filter(r => r.isOutOfOptimal && !r.isOutOfRange).length} color="amber" />
-              <StatCard label="Out of Range" value={allResults.filter(r => r.isOutOfRange).length} color="rose" />
+              <StatCard label="Out of Optimal" value={outOfOptimalOnly.length} color="amber" />
+              <StatCard label="Out of Range" value={outOfRangeResults.length} color="rose" />
             </div>
 
-            {/* Category Filter */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            {/* Tab Navigation */}
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-0">
               <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  selectedCategory === 'all'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                onClick={() => setActiveTab('results')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                  activeTab === 'results'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-slate-400 hover:text-white'
                 }`}
               >
-                All ({allResults.length})
+                <Activity className="w-4 h-4 inline-block mr-2" />
+                Results ({allResults.length})
               </button>
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    selectedCategory === cat
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {cat} ({allResults.filter(r => r.matchedCategory === cat).length})
-                </button>
-              ))}
+              <button
+                onClick={() => setActiveTab('recommendations')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                  activeTab === 'recommendations'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <Pill className="w-4 h-4 inline-block mr-2" />
+                Supplement Recs ({recommendations.length})
+                {recommendations.length > 0 && (
+                  <span className="ml-2 bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-xs">New</span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('browse')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-all ${
+                  activeTab === 'browse'
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 inline-block mr-2" />
+                Browse Database
+              </button>
             </div>
 
-            {/* Results Table */}
-            <div className="glass-card rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-white/5">
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Biomarker</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Value</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Status</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Ref Range</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Optimal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResults.map((result, idx) => (
-                      <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="px-4 py-3">
-                          <p className="text-white font-medium text-sm">{result.name}</p>
-                          {result.matchedCategory && (
-                            <p className="text-xs text-slate-500">{result.matchedCategory}</p>
-                          )}
-                        </td>
-                        <td className="text-center px-4 py-3">
-                          <span className={`font-mono font-semibold ${
-                            result.flag === 'high' ? 'text-rose-400' :
-                            result.flag === 'low' ? 'text-amber-400' :
-                            result.flag === 'critical' ? 'text-rose-500' :
-                            'text-emerald-400'
-                          }`}>
-                            {result.value} <span className="text-xs text-slate-500">{result.unit}</span>
-                          </span>
-                        </td>
-                        <td className="text-center px-4 py-3">
-                          <StatusBadge flag={result.flag} isOutOfOptimal={result.isOutOfOptimal} />
-                        </td>
-                        <td className="text-center px-4 py-3 text-sm text-slate-400">
-                          {result.standardLow !== null && result.standardHigh !== null
-                            ? `${result.standardLow} - ${result.standardHigh}`
-                            : result.referenceRange || '—'}
-                        </td>
-                        <td className="text-center px-4 py-3 text-sm text-blue-400">
-                          {result.optimalLow !== null && result.optimalHigh !== null
-                            ? `${result.optimalLow} - ${result.optimalHigh}`
-                            : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Results Tab */}
+            {activeTab === 'results' && (
+              <div className="mb-8">
+                {/* Category Filter */}
+                <div className="flex flex-wrap gap-2 mb-6">
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      selectedCategory === 'all'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    All ({allResults.length})
+                  </button>
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        selectedCategory === cat
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {cat} ({allResults.filter(r => r.matchedCategory === cat).length})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Results Table */}
+                <div className="glass-card rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/10 bg-white/5">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Biomarker</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Value</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Status</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Ref Range</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 uppercase">Optimal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredResults.map((result, idx) => (
+                          <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="px-4 py-3">
+                              <p className="text-white font-medium text-sm">{result.name}</p>
+                              {result.matchedCategory && (
+                                <p className="text-xs text-slate-500">{result.matchedCategory}</p>
+                              )}
+                            </td>
+                            <td className="text-center px-4 py-3">
+                              <span className={`font-mono font-semibold ${
+                                result.flag === 'high' ? 'text-rose-400' :
+                                result.flag === 'low' ? 'text-amber-400' :
+                                result.flag === 'critical' ? 'text-rose-500' :
+                                'text-emerald-400'
+                              }`}>
+                                {result.value} <span className="text-xs text-slate-500">{result.unit}</span>
+                              </span>
+                            </td>
+                            <td className="text-center px-4 py-3">
+                              <StatusBadge flag={result.flag} isOutOfOptimal={result.isOutOfOptimal} />
+                            </td>
+                            <td className="text-center px-4 py-3 text-sm text-slate-400">
+                              {result.standardLow !== null && result.standardHigh !== null
+                                ? `${result.standardLow} - ${result.standardHigh}`
+                                : result.referenceRange || '—'}
+                            </td>
+                            <td className="text-center px-4 py-3 text-sm text-blue-400">
+                              {result.optimalLow !== null && result.optimalHigh !== null
+                                ? `${result.optimalLow} - ${result.optimalHigh}`
+                                : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+
+            {/* Recommendations Tab */}
+            {activeTab === 'recommendations' && (
+              <div className="mb-8">
+                {recommendations.length === 0 ? (
+                  <div className="glass-card rounded-xl p-12 text-center">
+                    <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-white mb-2">All Clear!</h3>
+                    <p className="text-slate-400">All your biomarkers are within optimal range. No supplement recommendations needed.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                      <p className="text-blue-300 text-sm">
+                        Based on your lab results, we identified <span className="font-bold text-white">{outOfRangeResults.length + outOfOptimalOnly.length} biomarkers</span> outside optimal range and matched them to <span className="font-bold text-white">{recommendations.length} supplements</span> that may help. Supplements addressing multiple biomarkers are ranked higher.
+                      </p>
+                    </div>
+
+                    {/* Priority 1 - Out of Range */}
+                    {recommendations.filter(r => r.priority === 1).length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-rose-400 mb-3 flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5" />
+                          High Priority — Out of Standard Range
+                        </h3>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {recommendations.filter(r => r.priority === 1).map((rec, idx) => (
+                            <SupplementCard key={idx} rec={rec} allResults={allResults} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Priority 2+ - Optimization */}
+                    {recommendations.filter(r => r.priority >= 2).length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-amber-400 mb-3 flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5" />
+                          Optimization — Outside Optimal Range
+                        </h3>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {recommendations.filter(r => r.priority >= 2).map((rec, idx) => (
+                            <SupplementCard key={idx} rec={rec} allResults={allResults} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-6 text-center">
+                      <Link
+                        href="/browse"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl transition-colors font-medium"
+                      >
+                        Browse Full Supplement Database
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Browse Database Tab */}
+            {activeTab === 'browse' && (
+              <div className="mb-8">
+                <p className="text-slate-400 mb-6">Browse 109 biomarkers across {dbCategories.length} health categories with optimal and standard ranges.</p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+                  {dbCategories.map(cat => {
+                    const count = biomarkersDB.filter(b => b.category === cat).length;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setBrowseCategory(browseCategory === cat ? null : cat)}
+                        className={`p-4 rounded-xl text-left transition-all ${
+                          browseCategory === cat
+                            ? 'bg-blue-500/20 border border-blue-500/40'
+                            : 'glass-card hover:bg-white/10'
+                        }`}
+                      >
+                        <p className="font-semibold text-white text-sm">{cat}</p>
+                        <p className="text-xs text-slate-400 mt-1">{count} markers</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {browseCategory && (
+                  <div className="glass-card rounded-xl p-4 space-y-3">
+                    <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-3">{browseCategory}</h3>
+                    {biomarkersDB
+                      .filter(b => b.category === browseCategory)
+                      .map(bm => (
+                        <div key={bm.id} className="p-4 bg-white/5 rounded-lg">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-white">{bm.name}</h4>
+                              <p className="text-xs text-slate-400 mt-1">{bm.blurb}</p>
+                            </div>
+                            {bm.unit && (
+                              <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-lg shrink-0">{bm.unit}</span>
+                            )}
+                          </div>
+                          <div className="flex gap-4 mt-3">
+                            {bm.standard_range_low !== null && bm.standard_range_high !== null && (
+                              <div className="text-xs">
+                                <span className="text-slate-500">Standard: </span>
+                                <span className="text-slate-300">{bm.standard_range_low} – {bm.standard_range_high}</span>
+                              </div>
+                            )}
+                            {bm.optimal_range_low !== null && bm.optimal_range_high !== null && (
+                              <div className="text-xs">
+                                <span className="text-blue-500">Optimal: </span>
+                                <span className="text-blue-300">{bm.optimal_range_low} – {bm.optimal_range_high}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bm.summary}</p>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Browse Biomarker Database */}
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold text-white mb-2">Biomarker Reference Database</h2>
-          <p className="text-slate-400 mb-6">Browse 109 biomarkers across {dbCategories.length} health categories with optimal and standard ranges.</p>
+        {/* Browse Database - shown when no results yet */}
+        {allResults.length === 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-white mb-2">Biomarker Reference Database</h2>
+            <p className="text-slate-400 mb-6">Browse 109 biomarkers across {dbCategories.length} health categories with optimal and standard ranges.</p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
-            {dbCategories.map(cat => {
-              const count = biomarkersDB.filter(b => b.category === cat).length;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setBrowseCategory(browseCategory === cat ? null : cat)}
-                  className={`p-4 rounded-xl text-left transition-all ${
-                    browseCategory === cat
-                      ? 'bg-blue-500/20 border border-blue-500/40'
-                      : 'glass-card hover:bg-white/10'
-                  }`}
-                >
-                  <p className="font-semibold text-white text-sm">{cat}</p>
-                  <p className="text-xs text-slate-400 mt-1">{count} markers</p>
-                </button>
-              );
-            })}
-          </div>
-
-          {browseCategory && (
-            <div className="glass-card rounded-xl p-4 space-y-3">
-              <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-3">{browseCategory}</h3>
-              {biomarkersDB
-                .filter(b => b.category === browseCategory)
-                .map(bm => (
-                  <div key={bm.id} className="p-4 bg-white/5 rounded-lg">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white">{bm.name}</h4>
-                        <p className="text-xs text-slate-400 mt-1">{bm.blurb}</p>
-                      </div>
-                      {bm.unit && (
-                        <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-lg shrink-0">{bm.unit}</span>
-                      )}
-                    </div>
-                    <div className="flex gap-4 mt-3">
-                      {bm.standard_range_low !== null && bm.standard_range_high !== null && (
-                        <div className="text-xs">
-                          <span className="text-slate-500">Standard: </span>
-                          <span className="text-slate-300">{bm.standard_range_low} – {bm.standard_range_high}</span>
-                        </div>
-                      )}
-                      {bm.optimal_range_low !== null && bm.optimal_range_high !== null && (
-                        <div className="text-xs">
-                          <span className="text-blue-500">Optimal: </span>
-                          <span className="text-blue-300">{bm.optimal_range_low} – {bm.optimal_range_high}</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bm.summary}</p>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
+              {dbCategories.map(cat => {
+                const count = biomarkersDB.filter(b => b.category === cat).length;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setBrowseCategory(browseCategory === cat ? null : cat)}
+                    className={`p-4 rounded-xl text-left transition-all ${
+                      browseCategory === cat
+                        ? 'bg-blue-500/20 border border-blue-500/40'
+                        : 'glass-card hover:bg-white/10'
+                    }`}
+                  >
+                    <p className="font-semibold text-white text-sm">{cat}</p>
+                    <p className="text-xs text-slate-400 mt-1">{count} markers</p>
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+
+            {browseCategory && (
+              <div className="glass-card rounded-xl p-4 space-y-3">
+                <h3 className="text-lg font-semibold text-white border-b border-white/10 pb-3">{browseCategory}</h3>
+                {biomarkersDB
+                  .filter(b => b.category === browseCategory)
+                  .map(bm => (
+                    <div key={bm.id} className="p-4 bg-white/5 rounded-lg">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-white">{bm.name}</h4>
+                          <p className="text-xs text-slate-400 mt-1">{bm.blurb}</p>
+                        </div>
+                        {bm.unit && (
+                          <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-lg shrink-0">{bm.unit}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-4 mt-3">
+                        {bm.standard_range_low !== null && bm.standard_range_high !== null && (
+                          <div className="text-xs">
+                            <span className="text-slate-500">Standard: </span>
+                            <span className="text-slate-300">{bm.standard_range_low} – {bm.standard_range_high}</span>
+                          </div>
+                        )}
+                        {bm.optimal_range_low !== null && bm.optimal_range_high !== null && (
+                          <div className="text-xs">
+                            <span className="text-blue-500">Optimal: </span>
+                            <span className="text-blue-300">{bm.optimal_range_low} – {bm.optimal_range_high}</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bm.summary}</p>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// ── Supplement Recommendation Card ────────────────────────────
+
+function SupplementCard({ rec, allResults }: { rec: SupplementRecommendation; allResults: ParsedResult[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const compound = compoundsMap.get(rec.compoundName);
+
+  // Get the actual biomarker results that triggered this
+  const triggeredResults = rec.biomarkerIds.map(id => {
+    return allResults.find(r => r.matchedId === id);
+  }).filter(Boolean) as ParsedResult[];
+
+  return (
+    <div className={`glass-card rounded-xl overflow-hidden border ${
+      rec.priority === 1 ? 'border-rose-500/30' : 'border-amber-500/20'
+    }`}>
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Pill className={`w-4 h-4 ${rec.priority === 1 ? 'text-rose-400' : 'text-amber-400'}`} />
+              <h4 className="font-bold text-white">{rec.compoundName}</h4>
+            </div>
+            {compound && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs bg-white/10 text-slate-300 px-2 py-0.5 rounded">{compound.category}</span>
+                <span className="text-xs bg-white/10 text-slate-300 px-2 py-0.5 rounded">{compound.tier}</span>
+                {compound.pricePerDay > 0 && (
+                  <span className="text-xs text-slate-500">${compound.pricePerDay.toFixed(2)}/day</span>
+                )}
+              </div>
+            )}
+          </div>
+          {rec.biomarkerIds.length > 1 && (
+            <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-lg shrink-0">
+              {rec.biomarkerIds.length} markers
+            </span>
+          )}
+        </div>
+
+        {/* Triggered Biomarkers */}
+        <div className="space-y-2 mb-3">
+          {triggeredResults.map((result, idx) => (
+            <div key={idx} className={`flex items-center justify-between p-2 rounded-lg text-xs ${
+              result.isOutOfRange ? 'bg-rose-500/10' : 'bg-amber-500/10'
+            }`}>
+              <div className="flex items-center gap-2">
+                {result.flag === 'high' || result.flag === 'critical' ? (
+                  <TrendingUp className="w-3 h-3 text-rose-400" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 text-amber-400" />
+                )}
+                <span className="text-white font-medium">{result.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`font-mono font-semibold ${
+                  result.flag === 'high' || result.flag === 'critical' ? 'text-rose-400' : 'text-amber-400'
+                }`}>
+                  {result.value} {result.unit}
+                </span>
+                {result.optimalLow !== null && result.optimalHigh !== null && (
+                  <span className="text-slate-500">
+                    (optimal: {result.optimalLow}–{result.optimalHigh})
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Reason */}
+        <p className="text-xs text-slate-400 leading-relaxed">{rec.reasons[0]}</p>
+
+        {/* Compound details (expandable) */}
+        {compound && (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-xs text-blue-400 mt-3 hover:text-blue-300 transition-colors"
+            >
+              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {expanded ? 'Less details' : 'More details'}
+            </button>
+
+            {expanded && (
+              <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                <p className="text-xs text-slate-300">
+                  <span className="text-slate-500">Function: </span>
+                  {compound.primaryFunction}
+                </p>
+                <p className="text-xs text-slate-300">
+                  <span className="text-slate-500">Mechanism: </span>
+                  {compound.mechanism}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs text-slate-500">Longevity Impact:</span>
+                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 rounded-full"
+                      style={{ width: `${compound.longevityImpact * 10}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-blue-400 font-mono">{compound.longevityImpact}/10</span>
+                </div>
+                {compound.amazonLink && (
+                  <a
+                    href={compound.amazonLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-xs transition-colors"
+                  >
+                    <ShoppingCart className="w-3 h-3" />
+                    View on Amazon
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Shared Components ─────────────────────────────────────────
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   const colors: Record<string, string> = {

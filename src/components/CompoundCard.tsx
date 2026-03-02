@@ -1,10 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Compound } from '@/types';
 import { TierBadge } from './ui/TierBadge';
 import { SourceBadge } from './ui/SourceBadge';
 import { ScoreBar } from './ui/ScoreBar';
+import { getBiomarkerIdsForCompound } from '@/lib/recommendations';
+import biomarkersDB from '@/data/biomarkers-master.json';
 
 interface CompoundCardProps {
   compound: Compound;
@@ -54,6 +56,9 @@ export function CompoundCard({ compound, isSelected, onToggleSelect, onOpenDetai
       {/* Primary Function */}
       <p className="text-sm text-slate-300 mb-3">{compound.primaryFunction}</p>
 
+      {/* Biomarker Tags */}
+      <CompoundBiomarkerTags compoundName={compound.name} />
+
       {/* Scores */}
       <div className="space-y-2 mb-4">
         <ScoreBar value={compound.longevityImpact / 10} label="Longevity Impact" />
@@ -90,6 +95,34 @@ export function CompoundCard({ compound, isSelected, onToggleSelect, onOpenDetai
         >
           View on Amazon →
         </a>
+      )}
+    </div>
+  );
+}
+
+function CompoundBiomarkerTags({ compoundName }: { compoundName: string }) {
+  const biomarkerIds = useMemo(() => getBiomarkerIdsForCompound(compoundName), [compoundName]);
+
+  if (biomarkerIds.length === 0) return null;
+
+  const biomarkerNames = biomarkerIds
+    .map(id => {
+      const bm = biomarkersDB.find(b => b.id === id);
+      return bm ? bm.name : null;
+    })
+    .filter(Boolean)
+    .slice(0, 4);
+
+  return (
+    <div className="flex flex-wrap gap-1 mb-3">
+      <span className="text-[10px] text-slate-500 uppercase tracking-wider mr-0.5 self-center">Biomarkers:</span>
+      {biomarkerNames.map((name, i) => (
+        <span key={i} className="text-[10px] bg-blue-500/10 text-blue-400/80 px-1.5 py-0.5 rounded">
+          {name}
+        </span>
+      ))}
+      {biomarkerIds.length > 4 && (
+        <span className="text-[10px] text-slate-500 self-center">+{biomarkerIds.length - 4}</span>
       )}
     </div>
   );
