@@ -105,21 +105,18 @@ export default function RecommendPage() {
         {activeTab === 'goals' && (
           <div className="mb-12">
             <h2 className="text-2xl font-bold text-white mb-6">Select Your Health Goals</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
               {goals.map(goal => (
                 <button
                   key={goal.id}
                   onClick={() => toggleGoal(goal.id)}
-                  className={`glass-card p-4 rounded-lg border-2 transition-all text-left ${
+                  className={`px-4 py-3 rounded-xl border-2 transition-all text-left font-semibold text-sm ${
                     selectedGoals.includes(goal.id)
-                      ? 'border-blue-400 bg-blue-500/20'
-                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8'
+                      ? 'border-blue-400 bg-blue-500/20 text-blue-300'
+                      : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8 text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{goal.icon}</span>
-                    <span className="font-semibold text-white">{goal.label}</span>
-                  </div>
+                  {goal.label}
                 </button>
               ))}
             </div>
@@ -131,16 +128,16 @@ export default function RecommendPage() {
               </label>
               <input
                 type="range"
-                min="0"
-                max="50"
+                min="1"
+                max="20"
                 step="0.5"
                 value={maxBudget}
                 onChange={(e) => setMaxBudget(parseFloat(e.target.value))}
                 className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-400"
               />
               <div className="flex justify-between text-xs text-slate-400 mt-2">
-                <span>$0</span>
-                <span>$50</span>
+                <span>$1</span>
+                <span>$20</span>
               </div>
             </div>
           </div>
@@ -221,23 +218,17 @@ export default function RecommendPage() {
                           </div>
 
                           {/* Scores */}
-                          <div className="grid grid-cols-3 gap-3 mb-4 py-3 border-t border-b border-slate-700">
+                          <div className="grid grid-cols-2 gap-3 mb-4 py-3 border-t border-b border-slate-700">
                             <div className="text-center">
-                              <p className="text-xs text-slate-400 mb-1">Longevity</p>
+                              <p className="text-xs text-slate-400 mb-1">Longevity Impact</p>
                               <p className="text-lg font-bold text-blue-400">
-                                {rec.compound.longevityImpact}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-slate-400 mb-1">Efficiency</p>
-                              <p className="text-lg font-bold text-blue-400">
-                                {rec.compound.efficiencyScore}
+                                {rec.compound.longevityImpact}/10
                               </p>
                             </div>
                             <div className="text-center">
                               <p className="text-xs text-slate-400 mb-1">Price</p>
                               <p className="text-lg font-bold text-blue-400">
-                                ${rec.compound.pricePerDay.toFixed(2)}/d
+                                ${rec.compound.pricePerDay.toFixed(2)}/day
                               </p>
                             </div>
                           </div>

@@ -21,7 +21,7 @@ export default function ComparePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="text-4xl font-bold text-white mb-2">Efficiency Comparison</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Stack Comparison</h1>
           <p className="text-slate-400">
             Your custom protocol vs. the market's leading products.
           </p>
@@ -126,9 +126,9 @@ export default function ComparePage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-400 uppercase mb-1">Efficiency</p>
+                        <p className="text-xs text-slate-400 uppercase mb-1">Compounds</p>
                         <p className="text-2xl font-bold text-slate-300">
-                          {comparison.competitor.efficiencyScore.toFixed(1)}x
+                          {comparison.competitor.ingredients.length}
                         </p>
                       </div>
                     </div>
@@ -159,56 +159,6 @@ export default function ComparePage() {
                           </p>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Efficiency Comparison */}
-                    <div>
-                      <h4 className="font-semibold text-white mb-4">Efficiency Comparison</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm text-slate-300">Your Protocol</span>
-                            <span className="text-sm font-semibold text-blue-400">
-                              {comparison.userProtocol.avgEfficiency.toFixed(1)}x
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-700 rounded-full h-2">
-                            <div
-                              className="bg-blue-400 h-2 rounded-full"
-                              style={{
-                                width: `${Math.min(
-                                  (comparison.userProtocol.avgEfficiency / 5) * 100,
-                                  100
-                                )}%`,
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm text-slate-300">
-                              {comparison.competitor.name}
-                            </span>
-                            <span className="text-sm font-semibold text-slate-400">
-                              {comparison.competitor.efficiencyScore.toFixed(1)}x
-                            </span>
-                          </div>
-                          <div className="w-full bg-slate-700 rounded-full h-2">
-                            <div
-                              className="bg-slate-500 h-2 rounded-full"
-                              style={{
-                                width: `${Math.min(
-                                  (comparison.competitor.efficiencyScore / 5) * 100,
-                                  100
-                                )}%`,
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-blue-400 mt-3 font-semibold">
-                        Your protocol is {comparison.efficiencyGain.toFixed(1)}x more efficient
-                      </p>
                     </div>
 
                     {/* Ingredients */}

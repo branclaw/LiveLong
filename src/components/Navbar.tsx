@@ -97,8 +97,11 @@ export function Navbar() {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/30">
-                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    {(user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U').toUpperCase()}
                   </div>
+                  <span className="hidden sm:inline text-sm font-medium text-slate-300 max-w-[120px] truncate">
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                  </span>
                   <svg className={`w-4 h-4 text-slate-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -107,7 +110,8 @@ export function Navbar() {
                 {showUserMenu && (
                   <div className="absolute right-0 top-full mt-2 w-56 glass-card border border-blue-500/20 rounded-xl overflow-hidden shadow-2xl shadow-blue-500/10 animate-[fadeInUp_0.15s_ease-out]">
                     <div className="px-4 py-3 border-b border-white/10">
-                      <p className="text-sm text-white font-medium truncate">{user?.email}</p>
+                      <p className="text-sm text-white font-semibold truncate">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</p>
+                      <p className="text-xs text-slate-500 truncate mt-0.5">{user?.email}</p>
                     </div>
                     <div className="py-1">
                       <Link

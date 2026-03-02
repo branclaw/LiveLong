@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useProtocol } from "@/lib/protocol-context";
 
 export function BudgetFooter() {
   const { selectedCompoundIds, totalDailyCost, totalMonthlyCost } = useProtocol();
+  const pathname = usePathname();
 
   const itemCount = selectedCompoundIds.size;
   const hasItems = itemCount > 0;
+  const isOnProtocolPage = pathname === "/protocol";
 
   return (
     <>
@@ -47,12 +50,12 @@ export function BudgetFooter() {
                 </div>
               </div>
 
-              {/* Right: View protocol button */}
+              {/* Right: Context-aware button */}
               <Link
-                href="/protocol"
+                href={isOnProtocolPage ? "/browse" : "/protocol"}
                 className="px-4 py-2 rounded-lg glass-card bg-blue-500/15 hover:bg-blue-500/25 border-blue-500/40 text-blue-300 font-medium text-sm transition-all duration-200 hover:text-blue-200 whitespace-nowrap"
               >
-                View Protocol →
+                {isOnProtocolPage ? "Add More Compounds →" : "View Protocol →"}
               </Link>
             </div>
           ) : (

@@ -13,12 +13,77 @@ const ACTIVITY_LEVELS = [
 export function Step2Bio() {
   const { profile, updateProfile, nextStep, prevStep } = useOnboarding();
   const [useKg, setUseKg] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const validate = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!profile.age) {
+      newErrors.age = 'Age is required';
+    } else if (profile.age < 18 || profile.age > 120) {
+      newErrors.age = 'Please enter a valid age (18-120)';
+    } else if (!Number.isInteger(profile.age)) {
+      newErrors.age = 'Please enter a whole number';
+    }
+
+    if (!profile.weight) {
+      newErrors.weight = 'Weight is required';
+    } else if (profile.weight < 50 || profile.weight > 500) {
+      newErrors.weight = 'Please enter a valid weight';
+    }
+
+    if (!profile.sex) {
+      newErrors.sex = 'Please select your sex';
+    }
+
+    if (!profile.activityLevel) {
+      newErrors.activityLevel = 'Please select your activity level';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleContinue = () => {
+    setTouched({ age: true, weight: true, sex: true, activityLevel: true });
+    if (validate()) {
+      nextStep();
+    }
+  };
+
+  const handleAgeChange = (value: string) => {
+    const num = value ? parseInt(value) : undefined;
+    updateProfile({ age: num });
+    if (touched.age) {
+      const newErrors = { ...errors };
+      if (!num) {
+        newErrors.age = 'Age is required';
+      } else if (num < 18 || num > 120) {
+        newErrors.age = 'Please enter a valid age (18-120)';
+      } else {
+        delete newErrors.age;
+      }
+      setErrors(newErrors);
+    }
+  };
 
   const canContinue = profile.age && profile.weight && profile.sex && profile.activityLevel && profile.monthlyBudget;
 
   const handleWeightChange = (value: string) => {
     const num = value ? parseFloat(value) : undefined;
     updateProfile({ weight: num });
+    if (touched.weight) {
+      const newErrors = { ...errors };
+      if (!num) {
+        newErrors.weight = 'Weight is required';
+      } else if (num < 50 || num > 500) {
+        newErrors.weight = 'Please enter a valid weight';
+      } else {
+        delete newErrors.weight;
+      }
+      setErrors(newErrors);
+    }
   };
 
   const displayWeight = profile.weight
@@ -40,12 +105,25 @@ export function Step2Bio() {
         <input
           type="number"
           min="18"
-          max="100"
+          max="120"
           value={profile.age || ''}
-          onChange={e => updateProfile({ age: e.target.value ? parseInt(e.target.value) : undefined })}
-          className="w-full px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+          onChange={e => handleAgeChange(e.target.value)}
+          onBlur={() => { setTouched(t => ({ ...t, age: true })); validate(); }}
+          className={`w-full px-4 py-3 bg-slate-800 border-2 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+            errors.age && touched.age
+              ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
+              : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/20'
+          }`}
           placeholder="Enter your age"
         />
+        {errors.age && touched.age && (
+          <p className="mt-1.5 text-sm text-rose-400 flex items-center gap-1">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            {errors.age}
+          </p>
+        )}
       </div>
 
       {/* Weight Input */}
@@ -71,10 +149,23 @@ export function Step2Bio() {
                 handleWeightChange('');
               }
             }}
-            className="flex-1 px-4 py-3 bg-slate-800 border-2 border-slate-700 rounded-lg text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+            onBlur={() => { setTouched(t => ({ ...t, weight: true })); validate(); }}
+            className={`flex-1 px-4 py-3 bg-slate-800 border-2 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition-all ${
+              errors.weight && touched.weight
+                ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
+                : 'border-slate-700 focus:border-blue-500 focus:ring-blue-500/20'
+            }`}
             placeholder={useKg ? 'kg' : 'lbs'}
           />
         </div>
+        {errors.weight && touched.weight && (
+          <p className="mt-1.5 text-sm text-rose-400 flex items-center gap-1">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            {errors.weight}
+          </p>
+        )}
       </div>
 
       {/* Sex Selector */}
@@ -84,7 +175,7 @@ export function Step2Bio() {
           {['male', 'female'].map(sex => (
             <button
               key={sex}
-              onClick={() => updateProfile({ sex: sex as 'male' | 'female' })}
+              onClick={() => { updateProfile({ sex: sex as 'male' | 'female' }); setTouched(t => ({ ...t, sex: true })); }}
               className={`flex-1 py-3 rounded-lg font-semibold transition-all border-2 capitalize ${
                 profile.sex === sex
                   ? 'bg-blue-500 border-blue-500 text-white'
@@ -95,6 +186,9 @@ export function Step2Bio() {
             </button>
           ))}
         </div>
+        {errors.sex && touched.sex && (
+          <p className="mt-1.5 text-sm text-rose-400">{errors.sex}</p>
+        )}
       </div>
 
       {/* Activity Level */}
@@ -104,7 +198,7 @@ export function Step2Bio() {
           {ACTIVITY_LEVELS.map(level => (
             <button
               key={level.id}
-              onClick={() => updateProfile({ activityLevel: level.id as any })}
+              onClick={() => { updateProfile({ activityLevel: level.id as any }); setTouched(t => ({ ...t, activityLevel: true })); }}
               className={`p-4 rounded-lg border-2 transition-all text-center ${
                 profile.activityLevel === level.id
                   ? 'border-blue-500 bg-slate-800 shadow-lg shadow-blue-500/20'
@@ -117,6 +211,9 @@ export function Step2Bio() {
             </button>
           ))}
         </div>
+        {errors.activityLevel && touched.activityLevel && (
+          <p className="mt-1.5 text-sm text-rose-400">{errors.activityLevel}</p>
+        )}
       </div>
 
       {/* Monthly Budget Slider */}
@@ -149,7 +246,7 @@ export function Step2Bio() {
           Back
         </button>
         <button
-          onClick={nextStep}
+          onClick={handleContinue}
           disabled={!canContinue}
           className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
             canContinue

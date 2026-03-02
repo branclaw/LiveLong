@@ -5,14 +5,16 @@ import { useProtocol } from '@/lib/protocol-context';
 import { useAuth } from '@/lib/auth-context';
 import { useAuthModal } from '@/lib/auth-modal-context';
 import { LongevityGauge } from '@/components/LongevityGauge';
+import { CompoundDetailPanel } from '@/components/CompoundDetailPanel';
 import { calculateProtocolScore, getCategoryBreakdown, getTierBreakdown } from '@/lib/calculations';
 import { filterByDeliveryMode, getDeliveryStats, getSmoothieRecipe, classifyCompoundDelivery, type DeliveryMode } from '@/lib/delivery-modes';
 import { exportProtocolToPDF } from '@/lib/pdf-export';
 import { downloadShareCard, shareProtocolCard } from '@/lib/share-card';
+import { Compound } from '@/types';
 import Link from 'next/link';
 
 export default function ProtocolPage() {
-  const { getSelectedCompounds, totalDailyCost, totalMonthlyCost, clearProtocol, removeCompound, saveToCloud } = useProtocol();
+  const { getSelectedCompounds, totalDailyCost, totalMonthlyCost, clearProtocol, removeCompound, saveToCloud, toggleCompound, selectedCompoundIds } = useProtocol();
   const { isAuthenticated } = useAuth();
   const { openAuthModal } = useAuthModal();
 
@@ -25,6 +27,8 @@ export default function ProtocolPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [protocolName, setProtocolName] = useState('My Protocol');
   const [showNameInput, setShowNameInput] = useState(false);
+  const [selectedDetailCompound, setSelectedDetailCompound] = useState<Compound | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const allCompounds = getSelectedCompounds();
   const selectedCompounds = useMemo(() => filterByDeliveryMode(allCompounds, deliveryMode), [allCompounds, deliveryMode]);
@@ -33,11 +37,6 @@ export default function ProtocolPage() {
   const tierBreakdown = useMemo(() => getTierBreakdown(allCompounds), [allCompounds]);
   const deliveryStats = useMemo(() => getDeliveryStats(allCompounds), [allCompounds]);
   const smoothieRecipe = useMemo(() => getSmoothieRecipe(allCompounds), [allCompounds]);
-
-  const avgEfficiency = useMemo(() => {
-    if (allCompounds.length === 0) return 0;
-    return Math.round(allCompounds.reduce((sum, c) => sum + c.efficiencyScore, 0) / allCompounds.length * 10) / 10;
-  }, [allCompounds]);
 
   const compoundsByTier = useMemo(() => {
     const grouped: Record<number, typeof selectedCompounds> = { 1: [], 2: [], 3: [], 4: [] };
@@ -56,6 +55,16 @@ export default function ProtocolPage() {
     const next = new Set(expandedTiers);
     next.has(tier) ? next.delete(tier) : next.add(tier);
     setExpandedTiers(next);
+  };
+
+  const handleOpenDetail = (compound: Compound) => {
+    setSelectedDetailCompound(compound);
+    setIsDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setTimeout(() => setSelectedDetailCompound(null), 300);
   };
 
   const handleExportPDF = useCallback(async () => {
@@ -192,8 +201,10 @@ export default function ProtocolPage() {
                   <p className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">${totalMonthlyCost.toFixed(2)}</p>
                 </div>
                 <div className="glass-card p-6">
-                  <p className="text-slate-400 text-sm mb-1">Avg Efficiency</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-amber-300 bg-clip-text text-transparent">{avgEfficiency}/10</p>
+                  <p className="text-slate-400 text-sm mb-1">Avg Impact</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">
+                    {allCompounds.length > 0 ? (allCompounds.reduce((sum, c) => sum + c.longevityImpact, 0) / allCompounds.length).toFixed(1) : '0'}/10
+                  </p>
                 </div>
               </div>
             </div>
@@ -311,32 +322,49 @@ export default function ProtocolPage() {
                     {isExpanded && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         {compounds.map(compound => (
-                          <div key={compound.id} className={`glass-card ${config.bgColor} border ${config.borderColor} rounded-lg p-4 flex justify-between items-start`}>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold text-white">{compound.name}</h4>
-                                <span className="text-xs">{getDeliveryIcon(compound)}</span>
+                          <div
+                            key={compound.id}
+                            className={`glass-card ${config.bgColor} border ${config.borderColor} rounded-lg p-4 cursor-pointer hover:border-blue-400/50 transition-all group`}
+                            onClick={() => handleOpenDetail(compound)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-semibold text-white group-hover:text-blue-300 transition-colors">{compound.name}</h4>
+                                  <span className="text-xs">{getDeliveryIcon(compound)}</span>
+                                  <svg className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">{compound.category}</span>
+                                </div>
+                                <div className="text-sm text-slate-400 space-y-1">
+                                  <p>Impact: {compound.longevityImpact}/10</p>
+                                  <p className="text-blue-400 font-semibold">${compound.pricePerDay.toFixed(2)}/day</p>
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">{compound.category}</span>
-                                <span className={`text-xs px-2 py-1 rounded ${compound.takingToday ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-600 text-slate-400'}`}>
-                                  {compound.takingToday ? 'Active' : 'Optional'}
-                                </span>
+                              <div className="flex flex-col items-end gap-2 ml-3">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); removeCompound(compound.id); }}
+                                  className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded text-xs font-semibold transition-colors border border-rose-500/30"
+                                >
+                                  Remove
+                                </button>
+                                {compound.amazonLink && (
+                                  <a
+                                    href={compound.amazonLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded text-xs font-semibold transition-colors border border-amber-500/30 hover:border-amber-500/50"
+                                  >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M.045 18.02c.071-.116.187-.124.348-.022 2.312 1.568 4.836 2.352 7.572 2.352 2.784 0 5.328-.808 7.632-2.424.06-.036.12-.068.18-.096.168-.06.324.012.348.18.036.228-.108.384-.312.528-.36.264-.756.528-1.188.792-1.116.636-2.316 1.104-3.6 1.404-1.296.3-2.604.456-3.924.468-1.8-.012-3.528-.312-5.184-.912-1.644-.588-3.072-1.476-4.284-2.664-.096-.072-.12-.168-.072-.288l.012.012zm3.456-3.18c.168-.024.336.024.492.144l.144.12c.108.12.264.18.468.18h.432c.636-.072 1.236-.204 1.812-.396.084-.036.144-.024.18.036.036.048.024.108-.036.18-.852 1.02-2.088 1.536-3.708 1.536-.516 0-.852-.108-1.008-.324-.156-.204-.156-.528.012-.972a.326.326 0 0 1 .06-.108c.024-.036.06-.06.108-.072.024-.012.048-.024.06-.024h.048z"/><path d="M21.6 18.744c-.06-.096-.156-.144-.288-.144-.384.024-.756.06-1.116.108l-1.044.12c-.24.024-.48.048-.72.048-.612 0-.96-.204-1.044-.612-.024-.096-.012-.204.036-.324.024-.06.06-.12.108-.18l.3-.372c.216-.264.456-.552.72-.864.288-.336.492-.612.612-.828.168-.3.324-.54.468-.72.132-.168.24-.36.324-.576.084-.216.12-.396.108-.54-.012-.192-.084-.36-.216-.504-.132-.144-.312-.216-.54-.216h-.072l-.072.012c-.036.012-.072.024-.108.048-.156.072-.312.192-.468.36l-.192.192c-.12.12-.252.252-.396.396l-.096.096-.12.108c-.084.048-.156.048-.216 0-.06-.048-.084-.12-.06-.216.084-.42.276-.852.576-1.296.084-.132.12-.264.108-.396-.012-.132-.084-.216-.216-.264-.132-.06-.288-.048-.468.024-.18.072-.36.156-.528.252l-.264.156-.264.168c-.384.252-.72.528-1.008.828-.12.12-.192.264-.216.432-.024.168.024.324.144.468.12.144.288.216.504.216.156 0 .312-.024.468-.072l.264-.072.264-.072c.18-.036.324-.012.432.06.12.084.168.216.144.396-.024.156-.084.312-.18.468-.108.168-.24.336-.396.504l-.3.36c-.36.432-.588.756-.684.972-.108.24-.156.432-.144.576.012.228.12.396.324.504.204.12.456.156.756.12.3-.048.624-.12.972-.228l.828-.252c.192-.06.36-.084.504-.084.384 0 .648.132.792.396.036.06.06.132.072.216.012.084.012.168 0 .252l-.012.12c.18-.036.336-.084.468-.144.132-.06.264-.132.396-.216.264-.168.48-.36.648-.576.084-.108.132-.228.144-.36z"/></svg>
+                                    Buy on Amazon
+                                  </a>
+                                )}
                               </div>
-                              <div className="text-sm text-slate-400 space-y-1">
-                                <p>Impact: {compound.longevityImpact}/10</p>
-                                <p>Efficiency: {compound.efficiencyScore}/10</p>
-                                <p className="text-blue-400 font-semibold">${compound.pricePerDay.toFixed(2)}/day</p>
-                              </div>
-                              {compound.amazonLink && (
-                                <a href={compound.amazonLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 mt-2 inline-block">
-                                  View on Amazon →
-                                </a>
-                              )}
                             </div>
-                            <button onClick={() => removeCompound(compound.id)} className="ml-4 px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 rounded text-sm font-semibold transition-colors border border-rose-500/30">
-                              Remove
-                            </button>
                           </div>
                         ))}
                       </div>
@@ -377,6 +405,15 @@ export default function ProtocolPage() {
           </>
         )}
       </div>
+
+      {/* Detail Side Panel */}
+      <CompoundDetailPanel
+        compound={selectedDetailCompound}
+        isOpen={isDetailOpen}
+        onClose={handleCloseDetail}
+        isSelected={selectedDetailCompound ? selectedCompoundIds.has(selectedDetailCompound.id) : false}
+        onToggleSelect={toggleCompound}
+      />
     </div>
   );
 }

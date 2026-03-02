@@ -57,7 +57,6 @@ export function CompoundCard({ compound, isSelected, onToggleSelect, onOpenDetai
       {/* Scores */}
       <div className="space-y-2 mb-4">
         <ScoreBar value={compound.longevityImpact / 10} label="Longevity Impact" />
-        <ScoreBar value={compound.efficiencyScore / 10} label="Efficiency" />
       </div>
 
       {/* Price */}

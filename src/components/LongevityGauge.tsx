@@ -117,7 +117,7 @@ export function LongevityGauge({ score, size = 'md' }: LongevityGaugeProps) {
 
       {/* Label below */}
       <p className={`mt-4 font-semibold text-slate-300 ${config.labelSize}`}>
-        Protocol Efficiency
+        Protocol Score
       </p>
     </div>
   );

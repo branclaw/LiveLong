@@ -174,19 +174,16 @@ export default function Home() {
             {[
               {
                 step: 1,
-                icon: <Zap className="text-white" size={28} />,
                 title: 'Tell us your goals',
                 description: 'Answer targeted questions about your age, health markers, and longevity priorities.',
               },
               {
                 step: 2,
-                icon: <BarChart3 className="text-white" size={28} />,
                 title: 'We analyze the science',
                 description: 'Our algorithm evaluates 113 compounds against peer-reviewed longevity research and your goals.',
               },
               {
                 step: 3,
-                icon: <CheckCircle2 className="text-white" size={28} />,
                 title: 'Get your protocol',
                 description: 'Receive a custom protocol with compounds, dosages, timing, and sourcing in your budget.',
               },
@@ -194,10 +191,7 @@ export default function Home() {
               <div key={idx} className="relative">
                 <Card className="h-full">
                   <div className="flex flex-col items-center text-center">
-                    <div className="w-14 h-14 glass-subtle bg-blue-500/15 border border-blue-500/40 rounded-full flex items-center justify-center mb-6">
-                      {item.icon}
-                    </div>
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold text-sm mb-4 shadow-lg shadow-blue-500/50">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-violet-500 rounded-full flex items-center justify-center text-white font-bold text-lg mb-6 shadow-lg shadow-blue-500/50">
                       {item.step}
                     </div>
                     <h3 className="text-xl font-semibold text-white mb-3">

@@ -97,7 +97,6 @@ export function CompoundDetailPanel({
             {/* Scores */}
             <div className="space-y-3">
               <ScoreBar value={compound.longevityImpact / 10} label="Longevity Impact" />
-              <ScoreBar value={compound.efficiencyScore / 10} label="Efficiency Score" />
             </div>
 
             {/* Pricing */}

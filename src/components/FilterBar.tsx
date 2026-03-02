@@ -192,11 +192,15 @@ export function FilterBar({ onChange, initialFilters }: FilterBarProps) {
 
       {/* Price Range */}
       <div>
-        <label className="block text-sm font-medium text-slate-200 mb-2">Max Price Per Day</label>
+        <label className="block text-sm font-medium text-slate-200 mb-2">
+          Max Price Per Day {maxPrice > 0 && <span className="text-blue-400 font-bold">${maxPrice.toFixed(2)}</span>}
+        </label>
         <input
-          type="number"
-          placeholder="0"
-          value={maxPrice || ''}
+          type="range"
+          min="0"
+          max="20"
+          step="0.5"
+          value={maxPrice}
           onChange={(e) => {
             const val = parseFloat(e.target.value) || 0;
             setMaxPrice(val);
@@ -213,10 +217,12 @@ export function FilterBar({ onChange, initialFilters }: FilterBarProps) {
               });
             }, 0);
           }}
-          className="w-full px-4 py-2 glass-subtle bg-white/5 text-white placeholder-slate-400 rounded-lg border border-white/10 focus:border-blue-500 focus:outline-none transition-colors focus:bg-white/8"
-          step="0.1"
-          min="0"
+          className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-400"
         />
+        <div className="flex justify-between text-xs text-slate-500 mt-1">
+          <span>All</span>
+          <span>$20/day</span>
+        </div>
       </div>
 
       {/* Sort */}
@@ -232,7 +238,6 @@ export function FilterBar({ onChange, initialFilters }: FilterBarProps) {
             className="w-full px-4 py-2 glass-subtle bg-white/5 text-white rounded-lg border border-white/10 focus:border-blue-500 focus:outline-none transition-colors focus:bg-white/8"
           >
             <option value="longevityImpact">Longevity Impact</option>
-            <option value="efficiencyScore">Efficiency Score</option>
             <option value="pricePerDay">Price</option>
             <option value="name">Name</option>
           </select>
