@@ -48,7 +48,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="font-heading font-bold text-xl bg-gradient-to-r from-blue-400 via-violet-400 to-blue-300 bg-clip-text text-transparent hover:from-blue-300 hover:to-violet-300 transition-all">
-            The Longevity Navigator
+            Live Long Protocol
           </Link>
 
           {/* Navigation Links */}

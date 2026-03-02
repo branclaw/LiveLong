@@ -52,8 +52,8 @@ export async function generateShareCard(protocol: ShareCardData): Promise<Blob> 
       ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('LONGEVITY', canvas.width / 2, 40);
-      ctx.fillText('NAVIGATOR', canvas.width / 2, 85);
+      ctx.fillText('LIVE LONG', canvas.width / 2, 40);
+      ctx.fillText('PROTOCOL', canvas.width / 2, 85);
 
       // Protocol name section
       let yPos = 160;
@@ -142,7 +142,7 @@ export async function generateShareCard(protocol: ShareCardData): Promise<Blob> 
       ctx.fillStyle = '#00d4ff';
       ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('longevitynavigator.com', canvas.width / 2, yPos);
+      ctx.fillText('livelongprotocol.com', canvas.width / 2, yPos);
 
       // Bottom accent line
       ctx.fillStyle = '#00d4ff';
@@ -246,7 +246,7 @@ export async function shareProtocolCard(protocol: ShareCardData): Promise<void> 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         title: 'My Longevity Protocol',
-        text: `Check out my ${protocol.name} protocol from Longevity Navigator!`,
+        text: `Check out my ${protocol.name} protocol from Live Long Protocol!`,
         files: [file],
       });
     } else {

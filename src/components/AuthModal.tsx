@@ -153,7 +153,7 @@ export function AuthModal({ isOpen, onClose, initialView = 'signin' }: AuthModal
         {/* Logo */}
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-violet-400 to-blue-300 bg-clip-text text-transparent">
-            The Longevity Navigator
+            Live Long Protocol
           </h2>
         </div>
 

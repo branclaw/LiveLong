@@ -6,7 +6,6 @@ import { OnboardingProvider, useOnboarding } from '@/lib/onboarding-context';
 import { StepProgress } from '@/components/OnboardingSteps/StepProgress';
 import { Step1Goals } from '@/components/OnboardingSteps/Step1Goals';
 import { Step2Bio } from '@/components/OnboardingSteps/Step2Bio';
-import { Step3Hardware } from '@/components/OnboardingSteps/Step3Hardware';
 import { Step4Labs } from '@/components/OnboardingSteps/Step4Labs';
 import { Step5Habits } from '@/components/OnboardingSteps/Step5Habits';
 
@@ -20,10 +19,8 @@ function OnboardingContent() {
       case 2:
         return <Step2Bio />;
       case 3:
-        return <Step3Hardware />;
-      case 4:
         return <Step4Labs />;
-      case 5:
+      case 4:
         return <Step5Habits />;
       default:
         return <Step1Goals />;

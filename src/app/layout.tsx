@@ -9,7 +9,7 @@ const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
 const workSans = Work_Sans({ subsets: ['latin'], variable: '--font-work-sans' })
 
 export const metadata: Metadata = {
-  title: 'The Longevity Navigator — Clinical Supplement Protocol Engine',
+  title: 'Live Long Protocol — Clinical Supplement Protocol Engine',
   description:
     'Build your personalized longevity protocol from 113 compounds ranked by peer-reviewed science. Replace guesswork with data-driven supplementation for optimal healthspan.',
   keywords: [
@@ -23,15 +23,15 @@ export const metadata: Metadata = {
     'healthspan',
     'optimization',
   ],
-  authors: [{ name: 'The Longevity Navigator' }],
-  creator: 'The Longevity Navigator',
-  metadataBase: new URL('https://longevity-navigator.com'),
+  authors: [{ name: 'Live Long Protocol' }],
+  creator: 'Live Long Protocol',
+  metadataBase: new URL('https://livelong-iota.vercel.app'),
 
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://longevity-navigator.com',
-    siteName: 'The Longevity Navigator',
+    url: 'https://livelong-iota.vercel.app',
+    siteName: 'Live Long Protocol',
     title: 'Build Your Personalized Longevity Protocol',
     description:
       'Clinical-grade supplement recommendations ranked by peer-reviewed science. Stop overpaying for marketing hype.',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'The Longevity Navigator',
+        alt: 'Live Long Protocol',
         type: 'image/png',
       },
     ],
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: 'summary_large_image',
-    title: 'The Longevity Navigator — Clinical Supplement Protocol',
+    title: 'Live Long Protocol — Clinical Supplement Protocol',
     description:
       'Personalized longevity protocols from 113 compounds. Science over marketing.',
     images: ['/og-image.png'],
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Longevity Navigator',
+    title: 'Live Long Protocol',
   },
 }
 

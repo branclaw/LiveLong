@@ -7,9 +7,8 @@ import { Check } from 'lucide-react';
 const STEPS = [
   { number: 1, label: 'Goals' },
   { number: 2, label: 'Biology' },
-  { number: 3, label: 'Hardware' },
-  { number: 4, label: 'Labs' },
-  { number: 5, label: 'Habits' },
+  { number: 3, label: 'Labs' },
+  { number: 4, label: 'Habits' },
 ];
 
 export function StepProgress() {

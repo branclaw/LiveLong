@@ -48,8 +48,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const nextStep = useCallback(() => {
     setCurrentStep(prev => {
-      const newStep = Math.min(prev + 1, 5);
-      if (newStep === 5) {
+      const newStep = Math.min(prev + 1, 4);
+      if (newStep === 4) {
         // Auto-complete on final step
         setIsComplete(true);
       }
@@ -62,7 +62,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const goToStep = useCallback((step: number) => {
-    setCurrentStep(Math.max(1, Math.min(step, 5)));
+    setCurrentStep(Math.max(1, Math.min(step, 4)));
   }, []);
 
   const completeOnboarding = useCallback(() => {
