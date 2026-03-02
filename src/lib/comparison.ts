@@ -86,10 +86,10 @@ export function compareWithCompetitor(
     : 0;
 
   // Count category overlaps
-  const userCategories = new Set(selectedCompounds.map(c => c.category.toLowerCase()));
+  const userCategories = new Set(selectedCompounds.map(c => (c.category ?? '').toLowerCase()));
   const overlapCount = competitor.ingredients.filter(ing => {
-    const nameLC = ing.name.toLowerCase();
-    return selectedCompounds.some(c => c.name.toLowerCase().includes(nameLC) || nameLC.includes(c.category.toLowerCase()));
+    const nameLC = (ing.name ?? '').toLowerCase();
+    return selectedCompounds.some(c => (c.name ?? '').toLowerCase().includes(nameLC) || nameLC.includes((c.category ?? '').toLowerCase()));
   }).length;
 
   const dailySavings = competitor.pricePerDay - totalDailyCost;

@@ -116,8 +116,8 @@ const BOTH_KEYWORDS = [
  * Both: compounds available in both forms
  */
 export function classifyCompoundDelivery(compound: Compound): DeliveryClassification {
-  const name = compound.name.toLowerCase();
-  const category = compound.category.toLowerCase();
+  const name = (compound.name ?? '').toLowerCase();
+  const category = (compound.category ?? '').toLowerCase();
 
   // Check for pill-only compounds first (most specific)
   for (const keyword of PILL_ONLY_KEYWORDS) {
@@ -166,7 +166,7 @@ export function classifyCompoundDelivery(compound: Compound): DeliveryClassifica
  * Get smoothie preparation notes for a specific compound
  */
 function getSmoothieNotes(compoundName: string): string {
-  const name = compoundName.toLowerCase();
+  const name = (compoundName ?? '').toLowerCase();
 
   if (name.includes('scoop')) {
     return 'Mix with liquid as indicated on label';
@@ -262,7 +262,7 @@ export function getSmoothieRecipe(compounds: Compound[]): SmoothieRecipe {
  * Get typical serving amount for a compound
  */
 function getTypicalAmount(compoundName: string): string {
-  const name = compoundName.toLowerCase();
+  const name = (compoundName ?? '').toLowerCase();
 
   if (name.includes('scoop')) {
     return 'As indicated on label';

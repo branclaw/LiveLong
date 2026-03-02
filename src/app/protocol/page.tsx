@@ -109,8 +109,8 @@ export default function ProtocolPage() {
     }
   }, [isAuthenticated, openAuthModal, saveToCloud, protocolName, protocolScore]);
 
-  const getDeliveryIcon = (compoundName: string) => {
-    const form = classifyCompoundDelivery({ name: compoundName } as any).deliveryForm;
+  const getDeliveryIcon = (compound: typeof allCompounds[number]) => {
+    const form = classifyCompoundDelivery(compound).deliveryForm;
     if (form === 'smoothie') return '🥤';
     if (form === 'both') return '🥤💊';
     return '💊';
@@ -315,7 +315,7 @@ export default function ProtocolPage() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <h4 className="font-semibold text-white">{compound.name}</h4>
-                                <span className="text-xs">{getDeliveryIcon(compound.name)}</span>
+                                <span className="text-xs">{getDeliveryIcon(compound)}</span>
                               </div>
                               <div className="flex flex-wrap gap-2 mb-3">
                                 <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">{compound.category}</span>
