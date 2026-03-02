@@ -193,14 +193,16 @@ const ALIASES: Record<string, string> = {
   'oxldl': 'oxldl',
   'omega-3 total': 'omega-3-total',
   'epa+dpa+dha': 'omega-3-total',
-  'omega-6 total': 'omega-6-total',
-  'omega-6/omega-3 ratio': 'omega-6-omega-3-ratio',
+  'omega-6/omega-3 ratio': 'omega-6-3-ratio',
+  'omega-6/omega-3': 'omega-6-3-ratio',
+  'omega 6/omega 3 ratio': 'omega-6-3-ratio',
   'ldl particle number': 'ldl-particle-number',
   'ldl particle': 'ldl-particle-number',
   'ldl small': 'ldl-small',
   'ldl medium': 'ldl-medium',
-  'hdl large': 'hdl-large',
   'ldl peak size': 'ldl-peak-size',
+  'arachidonic acid/epa ratio': 'aa-epa-ratio',
+  'arachidonic acid/epa': 'aa-epa-ratio',
 };
 
 export interface ParsedBiomarker {
@@ -311,7 +313,7 @@ const NAME_CONTINUATIONS: Record<string, string> = {
 };
 
 // Lines to skip entirely
-const SKIP_LINE_RE = /^(Brandon|PATIENT|STATUS:|Phone|DOB:|Gender:|Patient ID|Time Reported|Received:|Collection Date|Accession|Lab Ref|ORDERING|Joshua|600 Congress|Floor \d|Austin|Test\t|Page \d|Printed from|Copyright|https:\/\/|contain info|intended recipient|privacy@|or obtained|Source:|FASTING|Not Reported|Reference [Rr]ange|Risk Category|Optimal\t|Moderate\t|High\t|Desirable|For someone|For patients|For adults|For ages|Fasting reference|between \d|prediabetes|follow-up|Martin SS|LDL-C is now|calculation|better accuracy|estimation|Cardiovascular|A desirable|depending|patients on|diabetes with|albuminuria|ApoB relative|and ACC|doi:|Pearson|Insulin concentration|This test was|analytical|Jellinger|assay has|This urine|Only those|RBC, bacteria|NOTE$|D\.O\.$|Collected:|NONE SEEN|NEGATIVE|YELLOW|CLEAR|LIPID PANEL|COMPREHENSIVE|CBC \(|URINALYSIS|APOLIPOPROTEIN EVAL|CARDIO IQ|HDL FUNCTION|OMEGACHECK|LIPOPROTEIN FRACT|This assay|regulations|performance|http|informational|\(This link|SEE NOTE|Number:$|^\d+$|^IG$|^EZ$|^Z\d|^UTC$|^<\d|^\d{2}\/\d{2}\/\d{4}$|^NONE|^Pattern |^A Pattern|In Range|Out Of Range|^\(calc\)|^\(BUN\)$|^TOTAL$|^PHOSPHATASE$|^COUNT$|^RATIO$|^\/uL$|^\/1\.73m2$|^CHOLESTEROL$|^SCORE$|^\/A1 RATIO$|^NEPHELOMETRY$|^\/MS\/MS$|^ESTERASE$|^\(SGOT\)$|^\(SGPT\)$|Consider retesting|the conversion factor|Relative Risk:|CVD Relative Risk|coronary artery disease|metabolic syndrome|at \d+ years\) relative|AALP APO|QUEST DIAGNOSTICS)/i;
+const SKIP_LINE_RE = /^(Brandon|PATIENT|STATUS:|Phone|DOB:|Gender:|Patient ID|Time Reported|Received:|Collection Date|Accession|Lab Ref|ORDERING|Joshua|600 Congress|Floor \d|Austin|Test\t|Page \d|Printed from|Copyright|https:\/\/|contain info|intended recipient|privacy@|or obtained|Source:|FASTING|Not Reported|Reference [Rr]ange|Risk Category|Optimal\t|Moderate\t|High\t|Desirable|For someone|For patients|For adults|For ages|Fasting reference|between \d|prediabetes|follow-up|Martin SS|LDL-C is now|calculation|better accuracy|estimation|Cardiovascular|A desirable|depending|patients on|diabetes with|albuminuria|ApoB relative|and ACC|doi:|Pearson|Insulin concentration|This test was|analytical|Jellinger|assay has|This urine|Only those|RBC, bacteria|NOTE$|D\.O\.$|Collected:|NONE SEEN|NEGATIVE|YELLOW|CLEAR|LIPID PANEL|COMPREHENSIVE|CBC \(|URINALYSIS|APOLIPOPROTEIN EVAL|CARDIO IQ|HDL FUNCTION|OMEGACHECK|LIPOPROTEIN FRACT|This assay|regulations|performance|http|informational|\(This link|SEE NOTE|Number:$|^\d+$|^IG$|^EZ$|^Z\d|^UTC$|^<\d|^\d{2}\/\d{2}\/\d{4}$|^NONE|^Pattern |^A Pattern|In Range|Out Of Range|^\(calc\)|^\(BUN\)$|^TOTAL$|^PHOSPHATASE$|^COUNT$|^RATIO$|^\/uL$|^\/1\.73m2$|^CHOLESTEROL$|^SCORE$|^\/A1 RATIO$|^NEPHELOMETRY$|^\/MS\/MS$|^ESTERASE$|^\(SGOT\)$|^\(SGPT\)$|Consider retesting|the conversion factor|Relative Risk:|CVD Relative Risk|coronary artery disease|metabolic syndrome|at \d+ years\) relative|AALP APO|QUEST DIAGNOSTICS|^between\t|^LINOLEIC ACID|^ARACHIDONIC ACID\t|^HDL LARGE|^OMEGA-6 TOTAL|^EPA\t|^DPA\t|^DHA\t)/i;
 
 /**
  * Parse Health Gorilla / Quest PDF text into structured biomarker results.
