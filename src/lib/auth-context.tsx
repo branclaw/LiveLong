@@ -109,7 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/onboarding' : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/dashboard' : undefined,
         },
       });
 
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/onboarding' : undefined,
+          redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/dashboard' : undefined,
         },
       });
 
@@ -149,7 +149,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         password,
         options: {
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin + '/onboarding' : undefined,
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/dashboard' : undefined,
         },
       });
 
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setAuthError(null);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== 'undefined' ? window.location.origin + '/reset-password' : undefined,
+        redirectTo: typeof window !== 'undefined' ? window.location.origin + '/auth/callback?next=/reset-password' : undefined,
       });
 
       if (error) {
